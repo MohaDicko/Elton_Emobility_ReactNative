@@ -1,0 +1,44 @@
+﻿# dependencies
+node_modules/
+
+# Expo / generated output
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native generated folders
+/ios
+/android
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+
+# Local env / machine files
+.env
+.env.*
+!.env.example
+.DS_Store
+*.tsbuildinfo
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.metro-health-check*
+
+# AI / assistant workspace files
+.claude/
+.agents/
+.codex/
+AGENTS.md
+CLAUDE.md
+.codex-*
+codex-*
+
+# Local notes and tooling not needed in the mobile build
+REQUETES_SAP_PRODUCTION.md
+sap-proxy.js

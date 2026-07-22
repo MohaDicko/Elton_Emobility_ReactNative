@@ -3,28 +3,55 @@
     "name": "GlobalActionMobile",
     "slug": "GlobalActionMobile",
     "version": "1.0.0",
+    "scheme": "globalactionmobile",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#2DB34A"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.emmanuelzed.GlobalActionMobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.emmanuelzed.globalactionmobile",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#ffffff"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "./plugins/withNetworkSecurity",
+      "expo-secure-store",
+      "expo-sharing",
+      "expo-font",
+      "expo-image",
+      ["expo-build-properties", {
+        "android": {
+          "compileSdkVersion": 36,
+          "targetSdkVersion": 35,
+          "minSdkVersion": 24,
+          "kotlinVersion": "2.1.20",
+          "cmake": "4.1.2"
+        }
+      }]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "119fa90a-3649-43aa-8028-f76535aa5672"
+      }
     }
   }
 }
