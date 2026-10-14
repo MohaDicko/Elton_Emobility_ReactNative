@@ -1,4 +1,4 @@
-﻿// â”€â”€â”€ Ã‰cran Comptage Inventaire â€” flux "terrain" â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€â”€ Ã‰cran Comptage Inventaire â€” flux "terrain" â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Le document est crÃ©Ã© depuis SAP Desktop (avec un placeholder). L'opÃ©rateur
 // scanne ou recherche un article, saisit la quantitÃ© et l'emplacement, puis
 // l'ajoute au document. La liste du bas montre ce qui a dÃ©jÃ  Ã©tÃ© comptÃ©.
@@ -19,6 +19,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '@core/config/theme';
+import Toast from 'react-native-toast-message';
 import { AppButton, QuantityStepper } from '@shared/components/ui';
 import { ArticleSearchBar } from '@shared/components';
 import {
@@ -77,6 +78,13 @@ const CountingDetailScreen = () => {
     [documentLines]
   );
 
+  // Spécification ELTON Module 6 : À l'ouverture du document, seuls les articles déjà comptés apparaissent
+  const [filterMode, setFilterMode] = useState<'counted' | 'all'>('counted');
+
+  const displayedLines = useMemo(() => {
+    return filterMode === 'counted' ? countedLines : documentLines;
+  }, [filterMode, countedLines, documentLines]);
+
   // RÃ©solution BinEntry â†’ BinCode pour l'affichage des lignes comptÃ©es
   const lineBinEntries = useMemo(
     () => [
@@ -104,12 +112,29 @@ const CountingDetailScreen = () => {
     return code ? shortBinLabel(code) : `#${line.BinEntry}`;
   };
 
-  // â”€â”€ Handlers â”€â”€
-  const handleArticleSelect = useCallback((article: IArticle) => {
-    setSelectedLineNumber(null);
-    setSelectedArticle(article);
-    setQuantity(1);
-  }, []);
+  // ── Handlers ──
+  const handleArticleSelect = useCallback(
+    (article: IArticle) => {
+      // Spécification ELTON Module 6 : Recherche et scan restreints aux articles du document
+      const matchLine = documentLines.find(
+        (l) => l.ItemCode === article.ItemCode || (article.BarCode && l.BarCode === article.BarCode)
+      );
+
+      if (!matchLine && documentLines.length > 0) {
+        Toast.show({
+          type: 'error',
+          text1: 'Article hors document',
+          text2: `L'article "${article.ItemName}" n'appartient pas à ce document d'inventaire.`,
+        });
+        return;
+      }
+
+      setSelectedLineNumber(matchLine ? matchLine.LineNumber : null);
+      setSelectedArticle(article);
+      setQuantity(matchLine && matchLine.Counted === 'tYES' ? matchLine.CountedQuantity : 1);
+    },
+    [documentLines]
+  );
 
   const handleLinePress = useCallback((line: IInventoryCountingLine) => {
     setSelectedLineNumber(line.LineNumber);
@@ -259,7 +284,7 @@ const CountingDetailScreen = () => {
 
         <FlatList
           ref={listRef}
-          data={documentLines}
+          data={displayedLines}
           keyExtractor={(item) => String(item.LineNumber)}
           contentContainerStyle={styles.listContent}
           keyboardShouldPersistTaps="handled"
@@ -365,15 +390,46 @@ const CountingDetailScreen = () => {
                 </>
               )}
 
-              {/* Titre liste */}
+              {/* Titre liste + Sélecteur d'affichage dynamique (Spécification ELTON Module 6) */}
               {documentLines.length > 0 && (
-                <View style={styles.listTitleRow}>
-                  <MaterialCommunityIcons name="clipboard-check-outline" size={18} color={COLORS.textSecondary} />
-                  <Text style={styles.listTitle}>
-                    Articles du document - {countedLines.length}/{documentLines.length} comptés
-                  </Text>
+                <View style={styles.listFilterHeader}>
+                  <View style={styles.listTitleRow}>
+                    <MaterialCommunityIcons name="clipboard-check-outline" size={18} color={COLORS.textSecondary} />
+                    <Text style={styles.listTitle}>
+                      {filterMode === 'counted' ? 'Articles déjà comptés' : 'Tous les articles du document'} ({displayedLines.length})
+                    </Text>
+                  </View>
+
+                  <View style={styles.filterPillsRow}>
+                    <Pressable
+                      onPress={() => setFilterMode('counted')}
+                      style={[styles.filterPill, filterMode === 'counted' && styles.filterPillActive]}
+                    >
+                      <Text style={[styles.filterPillText, filterMode === 'counted' && styles.filterPillTextActive]}>
+                        Comptés ({countedLines.length})
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setFilterMode('all')}
+                      style={[styles.filterPill, filterMode === 'all' && styles.filterPillActive]}
+                    >
+                      <Text style={[styles.filterPillText, filterMode === 'all' && styles.filterPillTextActive]}>
+                        Tous ({documentLines.length})
+                      </Text>
+                    </Pressable>
+                  </View>
                 </View>
               )}
+            </View>
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyList}>
+              <MaterialCommunityIcons name="clipboard-text-outline" size={40} color={COLORS.textDisabled} />
+              <Text style={styles.emptyListText}>
+                {filterMode === 'counted'
+                  ? 'Aucun article compté pour le moment.\nScannez un article pour démarrer le comptage.'
+                  : 'Aucun article dans ce document.'}
+              </Text>
             </View>
           }
           renderItem={({ item: line }) => {
@@ -409,17 +465,6 @@ const CountingDetailScreen = () => {
               </Pressable>
             );
           }}
-          ListEmptyComponent={
-            warehouseCode && !wrongWarehouse && documentLines.length === 0 ? (
-              <View style={styles.emptyState}>
-                <MaterialCommunityIcons name="barcode-scan" size={44} color={COLORS.textDisabled} />
-                <Text style={styles.emptyTitle}>Aucun article compté</Text>
-                <Text style={styles.emptySubtitle}>
-                  Scannez ou recherchez le premier article pour commencer le comptage
-                </Text>
-              </View>
-            ) : null
-          }
         />
 
         {/* Article déjà compté â€” additionner ou remplacer */}
@@ -632,17 +677,58 @@ const styles = StyleSheet.create({
   binChipTextActive: {
     color: COLORS.white,
   },
-  // â”€â”€ Liste comptÃ©e â”€â”€
+  // ── Liste comptée ──
+  listFilterHeader: {
+    gap: 10,
+    marginTop: 6,
+  },
   listTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 4,
   },
   listTitle: {
     fontSize: 15,
     fontWeight: '700',
     color: COLORS.textPrimary,
+  },
+  filterPillsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 4,
+  },
+  filterPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#EEF2F6',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  filterPillActive: {
+    backgroundColor: `${COLORS.blue}18`,
+    borderColor: COLORS.blue,
+  },
+  filterPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  filterPillTextActive: {
+    color: COLORS.blue,
+    fontWeight: '700',
+  },
+  emptyList: {
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  emptyListText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
   },
   lineCard: {
     flexDirection: 'row',

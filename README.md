@@ -1,17 +1,20 @@
-# GlobalActionMobile
+# GlobalActionMobile — ELTON OIL COMPANY
 
-Application mobile Expo / React Native pour les operations magasin connectees a SAP Business One Service Layer.
+> 📌 **Spécifications & État d'implémentation :** Consultez le fichier [CAHIER_DES_CHARGES_ELTON.md](file:///c:/Users/tinkpad/Desktop/Projet%20SAFIR/App-Mobile-Global-Action/CAHIER_DES_CHARGES_ELTON.md) pour retrouver l'intégralité du cahier des charges fonctionnel et l'état de réalisation module par module.
+
+Application mobile Expo / React Native pour les opérations magasin et stations connectées à SAP Business One Service Layer.
 
 ## Fonctionnalites principales
 
-- Authentification utilisateur mobile via SAP.
-- Tableau de bord magasin avec KPIs.
+- Authentification utilisateur mobile via SAP et securisation des roles (Admin / Utilisateur).
+- Tableau de bord magasin avec KPIs d'activite.
 - Commande produits et suggestions basees sur stock / ventes.
-- Reception fournisseurs.
-- Sorties de stock.
-- Inventaire terrain avec scan, comptage et mise a jour des lignes SAP.
-- Impression et partage PDF des etiquettes prix.
-- Activite utilisateur et ecrans d'administration.
+- Reception fournisseurs filtree par magasin.
+- Sorties de stock avec motif obligatoire.
+- Inventaire terrain avec affichage dynamique des articles comptes, detection de doublons et scan restreint au document.
+- Impression et partage PDF des etiquettes prix (planche standard A4).
+- Mise a jour des listes de prix boutique synchronisees en direct dans SAP B1.
+- Suivi d'activite et gestion des acces et magasins par l'administrateur.
 
 ## Prerequis
 
@@ -129,7 +132,7 @@ Ne pas versionner :
 
 Ces exclusions sont definies dans `.gitignore` et `.easignore`.
 
-## Verification
+## Verification et Tests
 
 Verification TypeScript :
 
@@ -137,4 +140,26 @@ Verification TypeScript :
 npx tsc --noEmit
 ```
 
-Note : si la verification echoue sur des erreurs existantes hors du changement en cours, les corriger separement avant une release stricte.
+Executer tous les tests (unitaires et integration) :
+
+```bash
+npm test
+```
+
+Executer uniquement les tests unitaires metier :
+
+```bash
+npm run test:unit
+```
+
+Executer uniquement les tests d'integration SAP :
+
+```bash
+npm run test:integration
+```
+
+Generer le rapport de couverture :
+
+```bash
+npm run test:coverage
+```

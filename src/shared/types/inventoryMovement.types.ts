@@ -9,6 +9,8 @@ export interface IInventoryMovementLine {
 
 /** Sortie de marchandises SAP B1 — entité InventoryGenExits */
 export interface IInventoryGenExit {
+  DocEntry?: number;
+  DocNum?: number;
   DocDate?: string;
   Comments?: string;
   U_TypeMouv?: string;

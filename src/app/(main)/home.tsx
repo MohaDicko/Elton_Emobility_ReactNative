@@ -87,6 +87,7 @@ const QUICK_ACTIONS: IQuickAction[] = [
   { key: 'reception', label: 'Reception', icon: 'inbox-arrow-down-outline', route: '/(main)/reception', color: COLORS.blue },
   { key: 'sortie', label: 'Sortie', icon: 'archive-arrow-up-outline', route: '/(main)/sortie', color: COLORS.orange },
   { key: 'inventaire', label: 'Inventaire', icon: 'clipboard-list-outline', route: '/(main)/inventaire', color: COLORS.primary },
+  { key: 'prix', label: 'Prix', icon: 'tag-multiple-outline', route: '/(main)/prix', color: COLORS.warning },
   { key: 'etiquettes', label: 'Etiquettes', icon: 'printer-outline', route: '/(main)/etiquettes', color: COLORS.pink },
   { key: 'activite', label: 'Activite', icon: 'history', route: '/(main)/activite', color: COLORS.purple },
 ];

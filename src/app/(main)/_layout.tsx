@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus, Platform } from 'react-native';
 import { Tabs, router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -111,6 +111,7 @@ const MainLayout = () => {
       />
       <Tabs.Screen name="sortie" options={{ href: null }} />
       <Tabs.Screen name="etiquettes" options={{ href: null }} />
+      <Tabs.Screen name="prix" options={{ href: null }} />
       <Tabs.Screen name="activite" options={{ href: null }} />
       <Tabs.Screen name="admin" options={{ href: null }} />
     </Tabs>

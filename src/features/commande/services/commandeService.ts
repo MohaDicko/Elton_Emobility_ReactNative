@@ -1,4 +1,4 @@
-// ─── Service Commande Fournisseur — API SAP B1 ──────────────────────────────
+import type { AxiosResponse } from 'axios';
 import { apiClient } from '@core/api/client';
 import { ENDPOINTS } from '@core/api/endpoints';
 import { N_WEEKS } from '@core/config/constants';
@@ -96,10 +96,11 @@ const getSuppliers = async (): Promise<ISupplier[]> => {
   const MAX_PAGES = 25;
 
   while (nextUrl && pageCount < MAX_PAGES) {
-    const { data } = await apiClient.get<ISapResponse<ISupplier> & { 'odata.nextLink'?: string }>(nextUrl);
-    allSuppliers.push(...data.value);
+    const response: AxiosResponse<ISapResponse<ISupplier> & { 'odata.nextLink'?: string }> =
+      await apiClient.get<ISapResponse<ISupplier> & { 'odata.nextLink'?: string }>(nextUrl);
+    allSuppliers.push(...response.data.value);
 
-    const raw = data['odata.nextLink'] ?? null;
+    const raw: string | null = response.data['odata.nextLink'] ?? null;
     if (raw) {
       // SAP retourne un chemin relatif sans "/" initial (ex: "BusinessPartners?$skip=20")
       // Axios baseURL = ".../b1s/v1" → il faut le "/" pour éviter la concaténation incorrecte

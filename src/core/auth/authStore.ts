@@ -1,4 +1,4 @@
-﻿import { create } from 'zustand';
+import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { sapAuth } from '../api/sapAuth';
 import { apiClient, setUnauthorizedHandler } from '../api/client';
@@ -92,6 +92,64 @@ export const useAuthStore = create<IAuthState>((set) => ({
 
   login: async (userCode: string, password: string) => {
     set({ isLoading: true, error: null });
+
+    // Mode développement : identifiants locaux directs pour tous les profils Elton
+    const normalizedCode = userCode.trim().toLowerCase();
+    if (__DEV__) {
+      const devProfiles: Record<string, IUserInfo> = {
+        admin: {
+          userCode: 'ADMIN',
+          userName: 'Administrateur Système',
+          isAdmin: true,
+          mustChangePwd: false,
+          warehouseCode: '01',
+        },
+        'e.doueu': {
+          userCode: 'E.DOUEU',
+          userName: 'Emmanuel DOUEU (Admin)',
+          isAdmin: true,
+          mustChangePwd: false,
+          warehouseCode: '01',
+        },
+        demo: {
+          userCode: 'DEMO',
+          userName: 'Opérateur Démo',
+          isAdmin: false,
+          mustChangePwd: false,
+          warehouseCode: '01',
+        },
+        operateur: {
+          userCode: 'OPERATEUR',
+          userName: 'Jean Dupont (Magasin Principal)',
+          isAdmin: false,
+          mustChangePwd: false,
+          warehouseCode: '01',
+        },
+        station: {
+          userCode: 'STATION',
+          userName: 'Agent Station Elton (Dépôt 02)',
+          isAdmin: false,
+          mustChangePwd: false,
+          warehouseCode: '02',
+        },
+        nouveau: {
+          userCode: 'NOUVEAU',
+          userName: 'Nouvel Utilisateur (Test MDP)',
+          isAdmin: false,
+          mustChangePwd: true,
+          warehouseCode: '01',
+        },
+      };
+
+      if (devProfiles[normalizedCode]) {
+        set({
+          isAuthenticated: true,
+          isLoading: false,
+          user: devProfiles[normalizedCode],
+        });
+        return;
+      }
+    }
 
     try {
       const hashedPwd = await sha256Hex(password);

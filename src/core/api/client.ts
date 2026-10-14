@@ -50,6 +50,23 @@ apiClient.interceptors.response.use(
       }
     }
 
+    // ── Mode Secours Automatique (Vercel / Serveur déconnecté / Démo 24/7) ────
+    // Si le serveur SAP n'est pas joignable (erreur réseau, 404, 502, machine éteinte),
+    // l'application bascule automatiquement sur les données Elton Oil sans planter.
+    if (!error.response || error.code === 'ERR_NETWORK' || error.response?.status >= 500) {
+      try {
+        const { handleMockFallback } = await import('./mockFallback');
+        const fallbackRes = handleMockFallback(
+          originalRequest.url || '',
+          originalRequest.method || 'GET',
+          originalRequest.data ? JSON.parse(originalRequest.data) : undefined
+        );
+        return Promise.resolve(fallbackRes);
+      } catch {
+        // En cas d'échec du mock, propager l'erreur d'origine
+      }
+    }
+
     return Promise.reject(error);
   }
 );

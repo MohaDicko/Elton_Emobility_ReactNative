@@ -38,6 +38,9 @@ export const ENDPOINTS = {
   // Familles d'articles
   ITEM_GROUPS: '/ItemGroups?$select=Number,GroupName',
 
+  // Listes de prix SAP B1
+  PRICE_LISTS: '/PriceLists?$select=PriceListNo,PriceListName&$orderby=PriceListNo',
+
   // Fournisseurs (BusinessPartners de type Supplier)
   // Liste initiale — top 500 pour couvrir la majorité sans pagination
   SUPPLIERS: "/BusinessPartners?$filter=CardType eq 'cSupplier'&$select=CardCode,CardName&$orderby=CardName&$top=500",

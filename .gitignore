@@ -1,4 +1,4 @@
-﻿# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
 # dependencies
 node_modules/
@@ -55,4 +55,10 @@ CLAUDE.md
 
 # Codex generated files
 codex-*
+
+# SQLite local test databases
+*.sqlite
+*.sqlite3
+*.db
+
 

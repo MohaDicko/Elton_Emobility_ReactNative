@@ -43,6 +43,14 @@ const MODULES: IModule[] = [
     route: '/(main)/etiquettes',
   },
   {
+    key: 'prix',
+    title: 'Liste de Prix',
+    sub: 'Tarifs boutique · Synchronisation SAP',
+    icon: 'tag-multiple-outline',
+    color: COLORS.orange,
+    route: '/(main)/prix',
+  },
+  {
     key: 'activite',
     title: 'Mon Activite',
     sub: 'Journal des operations',

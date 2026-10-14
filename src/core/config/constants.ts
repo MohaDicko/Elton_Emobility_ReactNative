@@ -17,9 +17,7 @@ export const IS_DEV = process.env.EXPO_PUBLIC_ENV === 'development';
 // Pas de liste hardcodée — voir useWarehouses() hook
 
 /**
- * Codes utilisateurs applicatifs ayant accès à l'écran Administration.
- * Approche sans UDF SAP supplémentaire — liste maintenue ici.
- * Ajouter un code ici pour accorder les droits admin (ex: 'E.DOUEU').
- * Comparaison insensible à la casse dans le layout.
+ * Codes utilisateurs ayant accès admin par défaut (fallback de secours).
+ * La gestion des rôles est pilotée dynamiquement par le champ U_IsAdmin dans SAP B1.
  */
-export const ADMIN_USER_CODES: readonly string[] = ['E.DOUEU'];
+export const ADMIN_USER_CODES: readonly string[] = ['ADMIN', 'E.DOUEU'];
