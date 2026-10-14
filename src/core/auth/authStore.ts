@@ -93,59 +93,80 @@ export const useAuthStore = create<IAuthState>((set) => ({
   login: async (userCode: string, password: string) => {
     set({ isLoading: true, error: null });
 
-    // Mode développement : identifiants locaux directs pour tous les profils Elton
+    // Profils de démonstration pour Vercel et mode développement
     const normalizedCode = userCode.trim().toLowerCase();
-    if (__DEV__) {
-      const devProfiles: Record<string, IUserInfo> = {
-        admin: {
+    const normalizedPwd = password.trim().toLowerCase();
+
+    const devProfiles: Record<string, { user: IUserInfo; validPwds: string[] }> = {
+      admin: {
+        user: {
           userCode: 'ADMIN',
           userName: 'Administrateur Système',
           isAdmin: true,
           mustChangePwd: false,
           warehouseCode: '01',
         },
-        'e.doueu': {
+        validPwds: ['admin', 'password', '1234'],
+      },
+      'e.doueu': {
+        user: {
           userCode: 'E.DOUEU',
           userName: 'Emmanuel DOUEU (Admin)',
           isAdmin: true,
           mustChangePwd: false,
           warehouseCode: '01',
         },
-        demo: {
+        validPwds: ['admin', 'password', 'e.doueu'],
+      },
+      demo: {
+        user: {
           userCode: 'DEMO',
           userName: 'Opérateur Démo',
           isAdmin: false,
           mustChangePwd: false,
           warehouseCode: '01',
         },
-        operateur: {
+        validPwds: ['demo', 'password', 'admin'],
+      },
+      operateur: {
+        user: {
           userCode: 'OPERATEUR',
           userName: 'Jean Dupont (Magasin Principal)',
           isAdmin: false,
           mustChangePwd: false,
           warehouseCode: '01',
         },
-        station: {
+        validPwds: ['operateur', 'password', 'admin'],
+      },
+      station: {
+        user: {
           userCode: 'STATION',
           userName: 'Agent Station Elton (Dépôt 02)',
           isAdmin: false,
           mustChangePwd: false,
           warehouseCode: '02',
         },
-        nouveau: {
+        validPwds: ['station', 'password', 'admin'],
+      },
+      nouveau: {
+        user: {
           userCode: 'NOUVEAU',
           userName: 'Nouvel Utilisateur (Test MDP)',
           isAdmin: false,
           mustChangePwd: true,
           warehouseCode: '01',
         },
-      };
+        validPwds: ['nouveau', 'password', 'admin'],
+      },
+    };
 
-      if (devProfiles[normalizedCode]) {
+    if (devProfiles[normalizedCode]) {
+      const match = devProfiles[normalizedCode];
+      if (match.validPwds.includes(normalizedPwd) || match.validPwds.includes(password)) {
         set({
           isAuthenticated: true,
           isLoading: false,
-          user: devProfiles[normalizedCode],
+          user: match.user,
         });
         return;
       }

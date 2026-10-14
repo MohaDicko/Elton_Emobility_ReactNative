@@ -35,6 +35,27 @@ export function handleMockFallback(url: string, method: string = 'GET', data?: a
     return { data: { value: MOCK_ELTON_SUPPLIERS } };
   }
 
+  // 3b. Authentification & Utilisateurs (Fallback Vercel)
+  if (cleanUrl.includes('GA_AUTH_USER')) {
+    return {
+      data: {
+        value: [
+          {
+            Code: 'ADMIN',
+            Name: 'Administrateur',
+            U_IsAdmin: 'Y',
+            U_MustChangePwd: 'N',
+            U_WhsCode: '01',
+          },
+        ],
+      },
+    };
+  }
+
+  if (cleanUrl.includes('/GA_USERS')) {
+    return { data: { U_WhsCode: '01', U_IsAdmin: 'Y' } };
+  }
+
   // 4. Détail d'un Article
   const itemDetailMatch = cleanUrl.match(/\/Items\('([^']+)'\)/);
   if (itemDetailMatch) {
