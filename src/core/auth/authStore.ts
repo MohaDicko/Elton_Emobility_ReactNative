@@ -1,12 +1,9 @@
 import { create } from 'zustand';
-import * as SecureStore from 'expo-secure-store';
 import { sapAuth } from '../api/sapAuth';
 import { apiClient, setUnauthorizedHandler } from '../api/client';
 import { ENDPOINTS } from '../api/endpoints';
 import { sha256Hex } from '../utils/crypto';
 import { IS_DEV } from '../config/constants';
-
-const APP_USER_KEY = 'GA_APP_USER';
 
 export interface IUserInfo {
   userCode: string;
@@ -250,7 +247,6 @@ export const useAuthStore = create<IAuthState>((set) => ({
   },
 
   logout: async () => {
-    await SecureStore.deleteItemAsync(APP_USER_KEY);
     set({ isAuthenticated: false, isLoading: false, user: null, error: null });
   },
 
@@ -258,7 +254,6 @@ export const useAuthStore = create<IAuthState>((set) => ({
     set({ isLoading: true });
     try {
       await sapAuth.restoreSession();
-      await SecureStore.deleteItemAsync(APP_USER_KEY).catch(() => {});
     } finally {
       set({ isAuthenticated: false, isLoading: false });
     }

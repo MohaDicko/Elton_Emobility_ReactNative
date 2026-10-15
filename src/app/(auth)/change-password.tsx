@@ -37,7 +37,7 @@ const ChangePasswordScreen = () => {
     setError(null);
     try {
       await adminService.changeOwnPassword(user.userCode, newPassword, user.isResetMode ?? false);
-      // Met à jour le flag en mémoire (SecureStore mis à jour au prochain login)
+      // Le compte est relu depuis SAP lors de la prochaine connexion.
       useAuthStore.setState((s) => ({
         user: s.user ? { ...s.user, mustChangePwd: false } : null,
       }));
