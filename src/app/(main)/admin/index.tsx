@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  Alert,
 } from 'react-native';
 import { Text, TextInput, Button, Portal, Modal, Divider, ActivityIndicator } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -370,6 +371,31 @@ const AdminContent = () => {
     );
   }, [resetTarget, resetForm, resetPwd]);
 
+  // ── Handlers déconnexion ──────────────────────────────────────────────────
+  const logout = useAuthStore((s) => s.logout);
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/(auth)/login');
+  };
+
+  const confirmLogout = () => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.confirm) {
+      if (window.confirm('Voulez-vous vraiment vous déconnecter ?')) {
+        handleLogout();
+      }
+      return;
+    }
+    Alert.alert(
+      'Déconnexion',
+      'Êtes-vous sûr de vouloir vous déconnecter ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Déconnecter', style: 'destructive', onPress: handleLogout },
+      ]
+    );
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -381,6 +407,14 @@ const AdminContent = () => {
       <View style={styles.header}>
         <View style={[styles.headerBrand, { backgroundColor: COLORS.purple }]} />
         <View style={styles.headerContent}>
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => [styles.backButton, pressed && styles.actionButtonPressed]}
+            hitSlop={8}
+            accessibilityLabel="Retour"
+          >
+            <MaterialCommunityIcons name="arrow-left" size={22} color={COLORS.textPrimary} />
+          </Pressable>
           <View style={[styles.headerIconWrap, { backgroundColor: `${COLORS.purple}18` }]}>
             <MaterialCommunityIcons name="account-cog-outline" size={22} color={COLORS.purple} />
           </View>
@@ -394,6 +428,7 @@ const AdminContent = () => {
             onPress={() => router.push('/admin/activite')}
             style={styles.activityButton}
             hitSlop={8}
+            accessibilityLabel="Historique d'activité"
           >
             <MaterialCommunityIcons name="history" size={22} color={COLORS.primary} />
           </Pressable>
@@ -401,8 +436,17 @@ const AdminContent = () => {
             onPress={handleOpenCreate}
             style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]}
             hitSlop={4}
+            accessibilityLabel="Nouvel utilisateur"
           >
             <MaterialCommunityIcons name="account-plus" size={22} color={COLORS.white} />
+          </Pressable>
+          <Pressable
+            onPress={confirmLogout}
+            style={({ pressed }) => [styles.logoutButton, pressed && styles.actionButtonPressed]}
+            hitSlop={8}
+            accessibilityLabel="Se déconnecter"
+          >
+            <MaterialCommunityIcons name="logout" size={20} color={COLORS.danger} />
           </Pressable>
         </View>
       </View>
@@ -812,6 +856,20 @@ const styles = StyleSheet.create({
   },
   addButtonPressed: {
     opacity: 0.8,
+    transform: [{ scale: 0.95 }],
+  },
+  backButton: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: `${COLORS.border}40`,
+  },
+  logoutButton: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: `${COLORS.danger}14`,
+  },
+  actionButtonPressed: {
+    opacity: 0.7,
     transform: [{ scale: 0.95 }],
   },
 

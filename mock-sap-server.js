@@ -310,7 +310,7 @@ const server = http.createServer((req, res) => {
       // 5. Items (Collection)
       if (pathname === '/b1s/v1/Items' && req.method === 'GET') {
         const filter = url.searchParams.get('$filter') || '';
-        let query = 'SELECT * FROM items WHERE Frozen = "tNO"';
+        let query = "SELECT * FROM items WHERE Frozen = 'tNO'";
         const params = [];
 
         // Filtre BarCode
@@ -499,8 +499,126 @@ const server = http.createServer((req, res) => {
         }
       }
 
-      // 12. Requêtes SQL SAP (SQLQueries)
+      // 12. Gestion des utilisateurs GA_USERS (UDO)
+      const gaUserMatch = pathname.match(/^\/b1s\/v1\/GA_USERS\('([^']+)'\)$/);
+      if (gaUserMatch) {
+        const userCode = decodeURIComponent(gaUserMatch[1]);
+        if (req.method === 'GET') {
+          const user = db.prepare('SELECT Code, Name, U_IsAdmin, U_MustChangePwd, U_WhsCode FROM ga_users WHERE Code = ?').get(userCode);
+          if (!user) {
+            sendJson(404, { error: { message: { value: 'Utilisateur non trouvé' } } });
+            return;
+          }
+          sendJson(200, user);
+          return;
+        }
+        if (req.method === 'PATCH') {
+          const fields = [];
+          const params = [];
+          if (parsedBody.U_Password !== undefined) {
+            fields.push('U_Password = ?');
+            params.push(parsedBody.U_Password);
+          }
+          if (parsedBody.U_WhsCode !== undefined) {
+            fields.push('U_WhsCode = ?');
+            params.push(parsedBody.U_WhsCode);
+          }
+          if (parsedBody.U_MustChangePwd !== undefined) {
+            fields.push('U_MustChangePwd = ?');
+            params.push(parsedBody.U_MustChangePwd);
+          }
+          if (parsedBody.U_IsAdmin !== undefined) {
+            fields.push('U_IsAdmin = ?');
+            params.push(parsedBody.U_IsAdmin);
+          }
+          if (fields.length > 0) {
+            params.push(userCode);
+            db.prepare(`UPDATE ga_users SET ${fields.join(', ')} WHERE Code = ?`).run(...params);
+          }
+          sendJson(204, {});
+          return;
+        }
+        if (req.method === 'DELETE') {
+          db.prepare('DELETE FROM ga_users WHERE Code = ?').run(userCode);
+          sendJson(204, {});
+          return;
+        }
+      }
+
+      if (pathname === '/b1s/v1/GA_USERS') {
+        if (req.method === 'GET') {
+          const rows = db.prepare('SELECT Code, Name, U_IsAdmin, U_MustChangePwd, U_WhsCode FROM ga_users ORDER BY Code').all();
+          sendOData(200, rows);
+          return;
+        }
+        if (req.method === 'POST') {
+          const insert = db.prepare(`
+            INSERT INTO ga_users (Code, Name, U_Password, U_IsAdmin, U_MustChangePwd, U_WhsCode)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `);
+          insert.run(
+            parsedBody.Code,
+            parsedBody.Name,
+            parsedBody.U_Password || '',
+            parsedBody.U_IsAdmin || 'N',
+            parsedBody.U_MustChangePwd || 'N',
+            parsedBody.U_WhsCode || '01'
+          );
+          sendJson(201, { Code: parsedBody.Code, Name: parsedBody.Name });
+          return;
+        }
+      }
+
+      // 13. Requêtes SQL SAP (SQLQueries)
       if (pathname.startsWith('/b1s/v1/SQLQueries')) {
+        // Authentification utilisateur mobile
+        if (pathname.includes('GA_AUTH_USER')) {
+          const paramList = (parsedBody && parsedBody.ParamList) || '';
+          const userMatch = paramList.match(/UserCode='([^']+)'/);
+          const pwdMatch = paramList.match(/HashedPwd='([^']+)'/);
+          const userCode = userMatch ? userMatch[1] : '';
+          const hashedPwd = pwdMatch ? pwdMatch[1] : '';
+
+          let user = db.prepare(
+            'SELECT Code, Name, U_IsAdmin, U_MustChangePwd, U_WhsCode FROM ga_users WHERE Code = ? AND U_Password = ?'
+          ).get(userCode, hashedPwd);
+
+          // Si non trouvé par hash, tenter en mode admin direct
+          if (!user && (userCode === 'ADMIN' || userCode === 'DEMO')) {
+            user = db.prepare(
+              'SELECT Code, Name, U_IsAdmin, U_MustChangePwd, U_WhsCode FROM ga_users WHERE Code = ?'
+            ).get(userCode);
+          }
+
+          sendOData(200, user ? [user] : []);
+          return;
+        }
+
+        // Liste des utilisateurs pour l'administration
+        if (pathname.includes('GA_LIST_USERS')) {
+          const rows = db.prepare('SELECT Code, Name, U_IsAdmin, U_MustChangePwd, U_WhsCode FROM ga_users ORDER BY Code').all();
+          sendOData(200, rows);
+          return;
+        }
+
+        // Récupération admin
+        if (pathname.includes('GA_RESET_ADMIN')) {
+          sendOData(200, [{ Code: 'ADMIN', Name: 'Administrateur Général', U_IsAdmin: 'Y', U_ResetUntil: '2099-12-31' }]);
+          return;
+        }
+
+        // Ventes hebdomadaires (Aide à la commande)
+        if (pathname.includes('GA_VENTES_HEBDO')) {
+          const items = db.prepare('SELECT ItemCode FROM items').all();
+          const mockSales = items.map(it => ({
+            ItemCode: it.ItemCode,
+            WeeklySales: Math.floor(Math.random() * 8) + 1,
+          }));
+          sendOData(200, mockSales);
+          return;
+        }
+
+        // Fallback SQLQueries par défaut
         sendOData(200, []);
         return;
       }

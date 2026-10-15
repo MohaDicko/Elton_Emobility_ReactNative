@@ -8,6 +8,8 @@ import {
   Image,
   useWindowDimensions,
   RefreshControl,
+  Alert,
+  Platform,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -180,9 +182,31 @@ const QuickAction = ({ item, index, iconSize }: { item: IQuickAction; index: num
 
 const HomeScreen = () => {
   const [kpiWarehouse, setKpiWarehouse] = useState('');
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const { kpis, loading: kpisLoading, refresh, refreshing } = useDashboardKpis(kpiWarehouse);
   const { width: screenWidth } = useWindowDimensions();
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/(auth)/login');
+  };
+
+  const confirmLogout = () => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.confirm) {
+      if (window.confirm('Voulez-vous vraiment vous déconnecter ?')) {
+        handleLogout();
+      }
+      return;
+    }
+    Alert.alert(
+      'Déconnexion',
+      'Êtes-vous sûr de vouloir vous déconnecter ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Déconnecter', style: 'destructive', onPress: handleLogout },
+      ]
+    );
+  };
 
   const isAdmin = user?.isAdmin ?? false;
   const isTablet = screenWidth >= 768;
@@ -197,7 +221,6 @@ const HomeScreen = () => {
       })),
     [kpis]
   );
-
 
   const showRuptureBanner =
     typeof kpis.ruptureCount === 'number' && kpis.ruptureCount > 0;
@@ -227,8 +250,19 @@ const HomeScreen = () => {
               <Text style={styles.headerName}>{user?.userName ?? 'Utilisateur'}</Text>
               <Text style={styles.headerDb}>{user?.companyDB ?? ''}</Text>
             </View>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initials(user?.userName)}</Text>
+            <View style={styles.headerRight}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials(user?.userName)}</Text>
+              </View>
+              <TouchableOpacity
+                onPress={confirmLogout}
+                style={styles.headerLogoutBtn}
+                activeOpacity={0.7}
+                accessibilityLabel="Se déconnecter"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <MaterialCommunityIcons name="logout" size={20} color={COLORS.danger} />
+              </TouchableOpacity>
             </View>
           </View>
         </Animated.View>
@@ -366,6 +400,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarText: { fontSize: 14, fontWeight: '800', color: COLORS.white },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerLogoutBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: `${COLORS.danger}14`,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
   kpiFilterCard: {
     marginHorizontal: 20,

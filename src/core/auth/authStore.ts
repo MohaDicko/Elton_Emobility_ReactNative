@@ -248,7 +248,7 @@ export const useAuthStore = create<IAuthState>((set) => ({
   },
 
   logout: async () => {
-    await SecureStore.deleteItemAsync(APP_USER_KEY);
+    await SecureStore.deleteItemAsync(APP_USER_KEY).catch(() => {});
     set({ isAuthenticated: false, isLoading: false, user: null, error: null });
   },
 

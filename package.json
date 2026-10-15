@@ -13,7 +13,8 @@
     "test:integration": "jest --testPathPattern=integration",
     "test:coverage": "jest --coverage",
     "mock:sap": "node mock-sap-server.js",
-    "db:delete": "node scripts/delete-test-db.js"
+    "db:delete": "node scripts/delete-test-db.js",
+    "db:seed": "node scripts/seed-elton-db.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~55.0.12",
