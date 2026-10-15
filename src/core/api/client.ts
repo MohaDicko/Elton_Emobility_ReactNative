@@ -32,9 +32,35 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// ── Mode Secours : renvoie les données Elton Oil en mémoire ──────────────────
+async function runMockFallback(config: InternalAxiosRequestConfig) {
+  const { handleMockFallback } = await import('./mockFallback');
+  let requestData = config.data;
+  if (typeof requestData === 'string') {
+    try { requestData = JSON.parse(requestData); } catch (_) {}
+  }
+  return handleMockFallback(config.url || '', config.method || 'GET', requestData);
+}
+
+/** Vercel (rewrite SPA) répond 200 + index.html à toute URL d'API inconnue */
+function isSpaHtmlResponse(data: unknown, headers: Record<string, unknown> | undefined): boolean {
+  const contentType = String(headers?.['content-type'] ?? '').toLowerCase();
+  if (contentType.includes('text/html')) return true;
+  return typeof data === 'string' && /^\s*<(!doctype|html)/i.test(data);
+}
+
 // ── Interceptor RESPONSE : gestion 401 (session expirée → redirect login) ───
 apiClient.interceptors.response.use(
-  (response) => response,
+  async (response) => {
+    if (isSpaHtmlResponse(response.data, response.headers as Record<string, unknown>)) {
+      try {
+        return (await runMockFallback(response.config)) as typeof response;
+      } catch {
+        // fallback indisponible → réponse d'origine
+      }
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config as RetryableConfig;
 
@@ -62,17 +88,7 @@ apiClient.interceptors.response.use(
       error.response?.status >= 500
     ) {
       try {
-        const { handleMockFallback } = await import('./mockFallback');
-        let requestData = originalRequest.data;
-        if (typeof requestData === 'string') {
-          try { requestData = JSON.parse(requestData); } catch (_) {}
-        }
-        const fallbackRes = handleMockFallback(
-          originalRequest.url || '',
-          originalRequest.method || 'GET',
-          requestData
-        );
-        return Promise.resolve(fallbackRes);
+        return Promise.resolve(await runMockFallback(originalRequest));
       } catch {
         // En cas d'échec du mock, propager l'erreur d'origine
       }
