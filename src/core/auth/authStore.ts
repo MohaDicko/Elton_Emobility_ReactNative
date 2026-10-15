@@ -101,12 +101,52 @@ export const useAuthStore = create<IAuthState>((set) => ({
       admin: {
         user: {
           userCode: 'ADMIN',
-          userName: 'Administrateur Système',
+          userName: 'Administrateur Général Elton',
           isAdmin: true,
           mustChangePwd: false,
           warehouseCode: '01',
         },
-        validPwds: ['admin', 'password', '1234'],
+        validPwds: ['admin', 'password', '1234', 'admin123!', '123456', '12345678', 'elton2026!'],
+      },
+      resp_mag: {
+        user: {
+          userCode: 'RESP_MAG',
+          userName: 'Mamadou Diop (Magasin Central)',
+          isAdmin: false,
+          mustChangePwd: false,
+          warehouseCode: '01',
+        },
+        validPwds: ['admin', 'password', 'elton2026!', 'resp_mag', '1234', '123456', 'admin123!'],
+      },
+      op_vdn: {
+        user: {
+          userCode: 'OP_VDN',
+          userName: 'Aïssatou Ndiaye (Station VDN)',
+          isAdmin: false,
+          mustChangePwd: false,
+          warehouseCode: '02',
+        },
+        validPwds: ['admin', 'password', 'elton2026!', 'op_vdn', '1234', '123456', 'admin123!'],
+      },
+      op_autoroute: {
+        user: {
+          userCode: 'OP_AUTOROUTE',
+          userName: 'Cheikh Seck (Station Autoroute)',
+          isAdmin: false,
+          mustChangePwd: false,
+          warehouseCode: '03',
+        },
+        validPwds: ['admin', 'password', 'elton2026!', 'op_autoroute', '1234', '123456', 'admin123!'],
+      },
+      op_aeroport: {
+        user: {
+          userCode: 'OP_AEROPORT',
+          userName: 'Modou Fall (Station Aéroport)',
+          isAdmin: false,
+          mustChangePwd: false,
+          warehouseCode: '04',
+        },
+        validPwds: ['admin', 'password', 'elton2026!', 'op_aeroport', '1234', '123456', 'admin123!'],
       },
       'e.doueu': {
         user: {
@@ -116,17 +156,17 @@ export const useAuthStore = create<IAuthState>((set) => ({
           mustChangePwd: false,
           warehouseCode: '01',
         },
-        validPwds: ['admin', 'password', 'e.doueu'],
+        validPwds: ['admin', 'password', 'e.doueu', 'admin123!', '123456'],
       },
       demo: {
         user: {
           userCode: 'DEMO',
-          userName: 'Opérateur Démo',
+          userName: 'Opérateur Démo Elton',
           isAdmin: false,
           mustChangePwd: false,
           warehouseCode: '01',
         },
-        validPwds: ['demo', 'password', 'admin'],
+        validPwds: ['demo', 'password', 'admin', 'admin123!', '1234', '123456'],
       },
       operateur: {
         user: {
@@ -136,7 +176,7 @@ export const useAuthStore = create<IAuthState>((set) => ({
           mustChangePwd: false,
           warehouseCode: '01',
         },
-        validPwds: ['operateur', 'password', 'admin'],
+        validPwds: ['operateur', 'password', 'admin', 'admin123!', '1234', '123456'],
       },
       station: {
         user: {
@@ -146,7 +186,7 @@ export const useAuthStore = create<IAuthState>((set) => ({
           mustChangePwd: false,
           warehouseCode: '02',
         },
-        validPwds: ['station', 'password', 'admin'],
+        validPwds: ['station', 'password', 'admin', 'admin123!', '1234', '123456'],
       },
       nouveau: {
         user: {
@@ -156,7 +196,7 @@ export const useAuthStore = create<IAuthState>((set) => ({
           mustChangePwd: true,
           warehouseCode: '01',
         },
-        validPwds: ['nouveau', 'password', 'admin'],
+        validPwds: ['nouveau', 'password', 'admin', 'admin123!', '1234', '123456'],
       },
     };
 
