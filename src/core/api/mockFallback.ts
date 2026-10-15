@@ -74,17 +74,12 @@ export function handleMockFallback(url: string, method: string = 'GET', data?: a
 
   // 3b. Authentification applicative
   if (cleanUrl.includes('GA_AUTH_USER')) {
+    const userMatch = (data && data.ParamList && data.ParamList.match(/UserCode='([^']+)'/)) || null;
+    const requestedCode = userMatch ? userMatch[1].toUpperCase() : 'ADMIN';
+    const userFound = localUsers.find((u) => u.Code.toUpperCase() === requestedCode) || localUsers[0];
     return {
       data: {
-        value: [
-          {
-            Code: 'ADMIN',
-            Name: 'Administrateur Général Elton',
-            U_IsAdmin: 'Y',
-            U_MustChangePwd: 'N',
-            U_WhsCode: '01',
-          },
-        ],
+        value: [userFound],
       },
     };
   }
@@ -121,9 +116,21 @@ export function handleMockFallback(url: string, method: string = 'GET', data?: a
     return { status: 201, data: { Code: data.Code, Name: data.Name } };
   }
 
-  // 3f. KPIs Dashboard (Rupture & Ventes Hebdo)
+  // 3f. KPIs Dashboard (SQL Queries)
+  if (cleanUrl.includes('GA_KPI_REC_OPEN_WHS')) {
+    return { data: { value: [{ BcOpen: 3 }] } };
+  }
+
+  if (cleanUrl.includes('GA_KPI_SORTIE_MOIS_WHS')) {
+    return { data: { value: [{ SortiesMois: 3 }] } };
+  }
+
   if (cleanUrl.includes('GA_KPI_RUPTURE_WHS')) {
-    return { data: { value: [{ RuptureCount: 2 }] } };
+    return { data: { value: [{ Ruptures: 2, RuptureCount: 2 }] } };
+  }
+
+  if (cleanUrl.includes('GA_KPI_INV_OPEN_WHS') || cleanUrl.includes('GA_KPI_INVENTAIRE_OPEN_WHS')) {
+    return { data: { value: [{ OpenDocs: 2, InvOpen: 2 }] } };
   }
 
   if (cleanUrl.includes('GA_VENTES_HEBDO')) {
@@ -156,23 +163,34 @@ export function handleMockFallback(url: string, method: string = 'GET', data?: a
     }
   }
 
-  // 5. Liste d'Articles (avec support recherche et code-barres)
+  // 5. Liste d'Articles (avec support recherche flexible et code-barres)
   if (cleanUrl.endsWith('/Items')) {
     let result = [...localArticles];
+
+    // Filtre rupture de stock (KPI rupture global)
+    if (url.includes('QuantityOnStock le 0')) {
+      result = result.filter((a) => a.QuantityOnStock <= 0);
+      return { data: { 'odata.count': result.length.toString(), value: result } };
+    }
+
+    // Filtre code-barres
     const barcodeMatch = url.match(/BarCode eq '([^']+)'/i);
     if (barcodeMatch) {
       result = result.filter((a) => a.BarCode === barcodeMatch[1]);
     }
-    const nameMatch = url.match(/startswith\(ItemName,'([^']+)'\)/i);
-    if (nameMatch) {
-      const q = nameMatch[1].toLowerCase();
-      result = result.filter((a) => a.ItemName.toLowerCase().startsWith(q));
+
+    // Recherche par mot-clé (nom, sous-famille ou code)
+    const searchMatch = url.match(/(?:startswith\(ItemName,'|startswith\(ItemCode,'|substringof\(')([^']+)'/i);
+    if (searchMatch) {
+      const q = searchMatch[1].toLowerCase();
+      result = result.filter((a) =>
+        a.ItemName.toLowerCase().includes(q) ||
+        a.ItemCode.toLowerCase().includes(q) ||
+        (a.U_sous_fam && a.U_sous_fam.toLowerCase().includes(q)) ||
+        (a.BarCode && a.BarCode.includes(q))
+      );
     }
-    const codeMatch = url.match(/startswith\(ItemCode,'([^']+)'\)/i);
-    if (codeMatch) {
-      const q = codeMatch[1].toLowerCase();
-      result = result.filter((a) => a.ItemCode.toLowerCase().startsWith(q));
-    }
+
     return { data: { 'odata.count': result.length.toString(), value: result } };
   }
 

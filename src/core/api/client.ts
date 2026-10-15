@@ -56,10 +56,14 @@ apiClient.interceptors.response.use(
     if (!error.response || error.code === 'ERR_NETWORK' || error.response?.status === 404 || error.response?.status >= 500) {
       try {
         const { handleMockFallback } = await import('./mockFallback');
+        let requestData = originalRequest.data;
+        if (typeof requestData === 'string') {
+          try { requestData = JSON.parse(requestData); } catch (_) {}
+        }
         const fallbackRes = handleMockFallback(
           originalRequest.url || '',
           originalRequest.method || 'GET',
-          originalRequest.data ? JSON.parse(originalRequest.data) : undefined
+          requestData
         );
         return Promise.resolve(fallbackRes);
       } catch {
