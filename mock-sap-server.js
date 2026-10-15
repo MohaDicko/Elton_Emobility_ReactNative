@@ -5,6 +5,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { DatabaseSync } = require('node:sqlite');
 
 const DB_PATH = path.join(__dirname, 'elton_test.sqlite');
@@ -228,6 +229,44 @@ function initDatabase() {
     console.log('✅ Base de test SQLite ELTON initialisée avec succès !');
   }
 
+  const insertUser = db.prepare(`
+    INSERT OR IGNORE INTO ga_users (Code, Name, U_Password, U_IsAdmin, U_MustChangePwd, U_WhsCode)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+  insertUser.run('ADMIN', 'Administrateur Elton', crypto.createHash('sha256').update('Admin123!').digest('hex'), 'Y', 'N', '01');
+  insertUser.run('RESP_MAG', 'Responsable magasin', crypto.createHash('sha256').update('Resp123!').digest('hex'), 'N', 'N', '01');
+
+  const insertExtraItem = db.prepare(`
+    INSERT OR IGNORE INTO items (ItemCode, ItemName, BarCode, QuantityOnStock, U_PCB, Mainsupplier)
+    VALUES (?, ?, ?, ?, ?, 'F0001')
+  `);
+  const insertExtraPrice = db.prepare(`
+    INSERT OR IGNORE INTO item_prices (ItemCode, PriceList, Price) VALUES (?, ?, ?)
+  `);
+  const insertExtraWarehouse = db.prepare(`
+    INSERT OR IGNORE INTO item_warehouses (ItemCode, WarehouseCode, InStock) VALUES (?, '01', ?)
+  `);
+  [
+    ['ELT-GREASE-01', 'Elton Graisse Multi-Usage 1kg', '370001001009', 25, 12, 6500],
+    ['ELT-FLUID-01', 'Elton Liquide Hydraulique 1L', '370001001010', 40, 12, 5500],
+  ].forEach(([code, name, barcode, stock, pcb, price]) => {
+    insertExtraItem.run(code, name, barcode, stock, pcb);
+    insertExtraPrice.run(code, 1, price);
+    insertExtraWarehouse.run(code, stock);
+  });
+
+  const activityCount = db.prepare('SELECT count(*) AS total FROM ga_mob_activity').get().total;
+  if (activityCount < 4) {
+    const insertActivity = db.prepare(`
+      INSERT INTO ga_mob_activity
+        (U_TypeDoc, U_DocNum, U_DocDate, U_UtilisateurMob, U_WhsCode, U_Commentaire)
+      VALUES (?, ?, datetime('now'), ?, ?, ?)
+    `);
+    for (let index = activityCount; index < 4; index += 1) {
+      insertActivity.run('SYSTEME', `INIT-${index + 1}`, 'ADMIN', '01', 'Activité initiale de test');
+    }
+  }
+
   return db;
 }
 
@@ -307,10 +346,61 @@ const server = http.createServer((req, res) => {
         return;
       }
 
+      // 4b. Utilisateurs applicatifs
+      if (pathname === '/b1s/v1/GA_USERS') {
+        if (req.method === 'GET') {
+          const rows = db.prepare('SELECT Code, Name, U_IsAdmin, U_MustChangePwd, U_WhsCode FROM ga_users ORDER BY Code').all();
+          sendOData(200, rows);
+          return;
+        }
+        if (req.method === 'POST') {
+          db.prepare(`
+            INSERT INTO ga_users (Code, Name, U_Password, U_IsAdmin, U_MustChangePwd, U_WhsCode)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `).run(
+            parsedBody.Code,
+            parsedBody.Name || parsedBody.Code,
+            parsedBody.U_Password || '',
+            parsedBody.U_IsAdmin || 'N',
+            parsedBody.U_MustChangePwd || 'Y',
+            parsedBody.U_WhsCode || '01'
+          );
+          sendJson(201, parsedBody);
+          return;
+        }
+      }
+
+      const userDetailMatch = pathname.match(/^\/b1s\/v1\/GA_USERS\('([^']+)'\)$/);
+      if (userDetailMatch) {
+        const userCode = decodeURIComponent(userDetailMatch[1]);
+        if (req.method === 'GET') {
+          const user = db.prepare('SELECT * FROM ga_users WHERE Code = ?').get(userCode);
+          if (!user) {
+            sendJson(404, { error: { message: { value: 'Utilisateur non trouvé' } } });
+            return;
+          }
+          sendJson(200, user);
+          return;
+        }
+        if (req.method === 'PATCH') {
+          const allowedFields = ['Name', 'U_Password', 'U_IsAdmin', 'U_MustChangePwd', 'U_WhsCode'];
+          const updates = allowedFields.filter(field => parsedBody[field] !== undefined);
+          if (updates.length > 0) {
+            const assignments = updates.map(field => `${field} = ?`).join(', ');
+            db.prepare(`UPDATE ga_users SET ${assignments} WHERE Code = ?`).run(
+              ...updates.map(field => parsedBody[field]),
+              userCode
+            );
+          }
+          sendJson(204, {});
+          return;
+        }
+      }
+
       // 5. Items (Collection)
       if (pathname === '/b1s/v1/Items' && req.method === 'GET') {
         const filter = url.searchParams.get('$filter') || '';
-        let query = 'SELECT * FROM items WHERE Frozen = "tNO"';
+        let query = "SELECT * FROM items WHERE Frozen = 'tNO'";
         const params = [];
 
         // Filtre BarCode
@@ -421,7 +511,43 @@ const server = http.createServer((req, res) => {
       // 8. PurchaseOrders (Commandes Fournisseurs)
       if (pathname === '/b1s/v1/PurchaseOrders' && req.method === 'GET') {
         const rows = db.prepare("SELECT * FROM purchase_orders WHERE DocumentStatus = 'bost_Open'").all();
-        sendOData(200, rows);
+        sendJson(200, { 'odata.metadata': 'mock-metadata', 'odata.count': rows.length, value: rows });
+        return;
+      }
+
+      if (pathname === '/b1s/v1/PurchaseOrders' && req.method === 'POST') {
+        const docEntry = Date.now() % 100000;
+        db.prepare(`
+          INSERT INTO purchase_orders
+            (DocEntry, DocNum, CardCode, DocDate, DocDueDate, DocTotal, NumAtCard, Comments, DocumentStatus)
+          VALUES (?, ?, ?, date('now'), ?, ?, ?, ?, 'bost_Open')
+        `).run(
+          docEntry,
+          docEntry,
+          parsedBody.CardCode || '',
+          parsedBody.DocDueDate || null,
+          parsedBody.DocTotal || 0,
+          parsedBody.NumAtCard || '',
+          parsedBody.Comments || ''
+        );
+        const insertLine = db.prepare(`
+          INSERT INTO purchase_order_lines
+            (DocEntry, LineNum, ItemCode, ItemDescription, Quantity, OpenQty, Price, WarehouseCode)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        (parsedBody.DocumentLines || []).forEach((line, index) => {
+          insertLine.run(
+            docEntry,
+            index,
+            line.ItemCode || '',
+            line.ItemDescription || '',
+            line.Quantity || 0,
+            line.Quantity || 0,
+            line.UnitPrice || line.Price || 0,
+            line.WarehouseCode || '01'
+          );
+        });
+        sendJson(201, { DocEntry: docEntry, DocNum: docEntry });
         return;
       }
 
@@ -473,6 +599,18 @@ const server = http.createServer((req, res) => {
         return;
       }
 
+      if (pathname === '/b1s/v1/InventoryGenExits' && req.method === 'GET') {
+        const rows = db.prepare('SELECT * FROM inventory_gen_exits ORDER BY DocEntry DESC').all();
+        sendJson(200, { 'odata.metadata': 'mock-metadata', 'odata.count': rows.length, value: rows });
+        return;
+      }
+
+      if (pathname === '/b1s/v1/BarCodes' && req.method === 'GET') {
+        const rows = db.prepare('SELECT ItemCode, BarCode FROM items WHERE BarCode IS NOT NULL').all();
+        sendOData(200, rows);
+        return;
+      }
+
       // 11. Journal d'activité mobile
       if (pathname === '/b1s/v1/U_GA_MOB_ACTIVITY') {
         if (req.method === 'POST') {
@@ -501,6 +639,18 @@ const server = http.createServer((req, res) => {
 
       // 12. Requêtes SQL SAP (SQLQueries)
       if (pathname.startsWith('/b1s/v1/SQLQueries')) {
+        if (pathname.includes("GA_AUTH_USER")) {
+          const params = parsedBody.ParamList || '';
+          const userCode = (params.match(/UserCode='([^']*)'/) || [])[1];
+          const hashedPassword = (params.match(/HashedPwd='([^']*)'/) || [])[1];
+          const rows = db.prepare(`
+            SELECT Code, Name, U_IsAdmin, U_MustChangePwd, U_WhsCode
+            FROM ga_users
+            WHERE Code = ? AND U_Password = ?
+          `).all(userCode, hashedPassword);
+          sendOData(200, rows);
+          return;
+        }
         sendOData(200, []);
         return;
       }

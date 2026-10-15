@@ -7,8 +7,14 @@ interface IValidationResult {
 
 /** Valide une quantité (> 0, optionnellement <= max) */
 export const validateQuantity = (qty: number, max?: number): IValidationResult => {
+  if (!Number.isFinite(qty)) {
+    return { valid: false, error: 'La quantité doit être un nombre valide' };
+  }
   if (qty <= 0) {
     return { valid: false, error: 'La quantité doit être supérieure à 0' };
+  }
+  if (max !== undefined && (!Number.isFinite(max) || max < 0)) {
+    return { valid: false, error: 'Le stock maximal est invalide' };
   }
   if (max !== undefined && qty > max) {
     return { valid: false, error: `La quantité ne peut pas dépasser ${max}` };
@@ -38,7 +44,7 @@ export const validateRequiredFields = (
 ): { valid: boolean; missingFields: string[] } => {
   const missingFields = fields.filter((field) => {
     const value = obj[field];
-    return value === null || value === undefined || value === '';
+    return value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
   });
 
   return {

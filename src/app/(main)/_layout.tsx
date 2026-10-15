@@ -111,7 +111,7 @@ const MainLayout = () => {
       />
       <Tabs.Screen name="sortie" options={{ href: null }} />
       <Tabs.Screen name="etiquettes" options={{ href: null }} />
-      <Tabs.Screen name="prix" options={{ href: null }} />
+      <Tabs.Screen name="prix/index" options={{ href: null }} />
       <Tabs.Screen name="activite" options={{ href: null }} />
       <Tabs.Screen name="admin" options={{ href: null }} />
     </Tabs>
