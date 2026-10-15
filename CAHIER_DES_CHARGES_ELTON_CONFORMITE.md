@@ -10,6 +10,15 @@ Une exigence ne peut être déclarée conforme que si elle est vérifiée par :
 Les tests Jest et le mock SAP local valident les contrats applicatifs. Ils ne remplacent
 pas la recette SAP réelle.
 
+## Mode démonstration frontend public
+
+Le déploiement Vercel public peut être configuré avec `EXPO_PUBLIC_DEMO_MODE=true`.
+Dans ce mode, l'application utilise exclusivement des données fictives en mémoire et
+bloque les appels réseau vers SAP. Les comptes `demo-admin` et `demo-user` servent
+uniquement à présenter les deux vues fonctionnelles prévues par le cahier des charges.
+Ce mode facilite la démonstration à distance, mais ne constitue pas une recette SAP et
+ne modifie pas les règles de sécurité du déploiement connecté à SAP.
+
 ## Statuts
 
 - **Implémenté — à certifier** : le parcours existe dans l'application, mais doit être validé sur SAP réel ou appareil réel.
