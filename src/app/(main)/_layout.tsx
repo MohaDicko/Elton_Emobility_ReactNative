@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus, Platform } from 'react-native';
-import { Tabs, router } from 'expo-router';
+import { Redirect, Tabs, router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@core/auth/authStore';
@@ -17,13 +17,17 @@ const tabIcon = (name: IconName) =>
   );
 
 const MainLayout = () => {
-  const { logout } = useAuthStore();
+  const { isAuthenticated, logout } = useAuthStore();
   const insets = useSafeAreaInsets();
   const backgroundTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const tabBottomPadding = Platform.OS === 'ios'
     ? Math.max(insets.bottom, 20)
     : Math.max(insets.bottom, 18);
+
+  if (!isAuthenticated) {
+    return <Redirect href="/(auth)/login" />;
+  }
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state: AppStateStatus) => {
