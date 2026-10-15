@@ -12,6 +12,9 @@ export const N_WEEKS = Number(process.env.EXPO_PUBLIC_N_WEEKS) || 8;
 /** Nombre de semaines de couverture cible pour la suggestion de commande */
 export const N_WEEKS_COVERAGE = Number(process.env.EXPO_PUBLIC_N_WEEKS_COVERAGE) || 4;
 export const IS_DEV = process.env.EXPO_PUBLIC_ENV === 'development';
+/** Démo frontend publique : données locales uniquement, aucun accès SAP réel. */
+export const DEMO_MODE = process.env.EXPO_PUBLIC_DEMO_MODE === 'true';
+export const IS_MOCK_MODE = IS_DEV || DEMO_MODE;
 
 // Les entrepôts sont récupérés dynamiquement via GET /Warehouses
 // Pas de liste hardcodée — voir useWarehouses() hook

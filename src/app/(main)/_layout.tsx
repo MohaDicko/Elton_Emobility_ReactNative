@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from 'react';
-import { AppState, AppStateStatus, Platform } from 'react-native';
+import { AppState, AppStateStatus, Platform, StyleSheet, Text, View } from 'react-native';
 import { Redirect, Tabs, router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@core/auth/authStore';
 import { COLORS } from '@core/config/theme';
+import { DEMO_MODE } from '@core/config/constants';
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -24,10 +25,6 @@ const MainLayout = () => {
   const tabBottomPadding = Platform.OS === 'ios'
     ? Math.max(insets.bottom, 20)
     : Math.max(insets.bottom, 18);
-
-  if (!isAuthenticated) {
-    return <Redirect href="/(auth)/login" />;
-  }
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state: AppStateStatus) => {
@@ -49,35 +46,45 @@ const MainLayout = () => {
     };
   }, [logout]);
 
+  if (!isAuthenticated) {
+    return <Redirect href="/(auth)/login" />;
+  }
+
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textDisabled,
-        tabBarHideOnKeyboard: true,
-        tabBarStyle: {
-          backgroundColor: COLORS.surface,
-          borderTopWidth: 0.5,
-          borderTopColor: COLORS.border,
-          elevation: 12,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -3 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
-          height: 60 + tabBottomPadding,
-          paddingBottom: tabBottomPadding,
-          paddingTop: 8,
-        },
-        tabBarItemStyle: {
-          paddingVertical: 2,
-        },
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '600',
-        },
-      }}
-    >
+    <View style={styles.container}>
+      {DEMO_MODE && (
+        <View style={styles.demoBanner}>
+          <Text style={styles.demoBannerText}>MODE DEMONSTRATION - donnees fictives, aucun SAP connecte</Text>
+        </View>
+      )}
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: COLORS.primary,
+          tabBarInactiveTintColor: COLORS.textDisabled,
+          tabBarHideOnKeyboard: true,
+          tabBarStyle: {
+            backgroundColor: COLORS.surface,
+            borderTopWidth: 0.5,
+            borderTopColor: COLORS.border,
+            elevation: 12,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -3 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+            height: 60 + tabBottomPadding,
+            paddingBottom: tabBottomPadding,
+            paddingTop: 8,
+          },
+          tabBarItemStyle: {
+            paddingVertical: 2,
+          },
+          tabBarLabelStyle: {
+            fontSize: 10,
+            fontWeight: '600',
+          },
+        }}
+      >
       <Tabs.Screen
         name="home"
         options={{
@@ -118,8 +125,24 @@ const MainLayout = () => {
       <Tabs.Screen name="prix/index" options={{ href: null }} />
       <Tabs.Screen name="activite" options={{ href: null }} />
       <Tabs.Screen name="admin" options={{ href: null }} />
-    </Tabs>
+      </Tabs>
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  demoBanner: {
+    backgroundColor: '#FFF3CD',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  demoBannerText: {
+    color: '#664D03',
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+});
 
 export default MainLayout;

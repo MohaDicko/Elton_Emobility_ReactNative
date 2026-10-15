@@ -17,6 +17,7 @@ import { router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '@core/auth/authStore';
 import { COLORS } from '@core/config/theme';
+import { DEMO_MODE } from '@core/config/constants';
 import { APP_ASSETS } from '@core/constants/assets';
 
 // ─── Composant ──────────────────────────────────────────────────────────────
@@ -138,18 +139,19 @@ const LoginScreen = () => {
             SE CONNECTER
           </Button>
 
-          {/* Mode démo — dev only */}
-          {__DEV__ && (
+          {/* Mode démo — données locales uniquement */}
+          {DEMO_MODE && (
             <Button
               mode="text"
               onPress={() => {
                 useAuthStore.setState({
                   isAuthenticated: true,
                   user: {
-                    userCode: 'DEMO',
-                    userName: 'Utilisateur Démo',
+                    userCode: 'DEMO-USER',
+                    userName: 'Utilisateur Standard Démo',
                     isAdmin: false,
                     mustChangePwd: false,
+                    warehouseCode: '01',
                   },
                 });
                 router.replace('/(main)/home');
@@ -158,7 +160,7 @@ const LoginScreen = () => {
               textColor="rgba(255,255,255,0.5)"
               icon="bug"
             >
-              MODE DÉMO (dev)
+              ACCÈS DÉMO FRONTEND
             </Button>
           )}
         </Animated.View>

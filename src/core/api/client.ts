@@ -1,6 +1,6 @@
 // ─── Instance Axios avec interceptors SAP B1 ─────────────────────────────────
-import axios, { InternalAxiosRequestConfig } from 'axios';
-import { SAP_BASE_URL, API_TIMEOUT, IS_DEV } from '../config/constants';
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { SAP_BASE_URL, API_TIMEOUT, DEMO_MODE, IS_MOCK_MODE, IS_DEV } from '../config/constants';
 import { sapAuth } from './sapAuth';
 
 interface RetryableConfig extends InternalAxiosRequestConfig {
@@ -25,6 +25,9 @@ export const apiClient = axios.create({
 
 // ── Interceptor REQUEST : injection du cookie de session SAP ─────────────────
 apiClient.interceptors.request.use((config) => {
+  if (DEMO_MODE) {
+    return Promise.reject(new AxiosError('Frontend demo mode uses local data only', 'ERR_DEMO_MODE', config));
+  }
   const session = sapAuth.getSession();
   if (session) {
     config.headers['Cookie'] = `B1SESSION=${session}`;
@@ -32,7 +35,7 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// ── Mode Secours : renvoie les données Elton Oil en mémoire (DEV uniquement) ─
+// ── Mode Secours : renvoie les données Elton Oil en mémoire (DEV ou démo) ────
 async function runMockFallback(config: InternalAxiosRequestConfig) {
   const { handleMockFallback } = await import('./mockFallback');
   let requestData = config.data;
@@ -52,7 +55,7 @@ function isSpaHtmlResponse(data: unknown, headers: Record<string, unknown> | und
 // ── Interceptor RESPONSE : gestion 401 (session expirée → redirect login) ───
 apiClient.interceptors.response.use(
   async (response) => {
-    if (IS_DEV && isSpaHtmlResponse(response.data, response.headers as Record<string, unknown>)) {
+    if (IS_MOCK_MODE && isSpaHtmlResponse(response.data, response.headers as Record<string, unknown>)) {
       try {
         return (await runMockFallback(response.config)) as typeof response;
       } catch {
@@ -80,7 +83,7 @@ apiClient.interceptors.response.use(
     // En production réelle, toute erreur réseau ou serveur SAP doit remonter
     // fidèlement à l'application sans masquer les pannes ou les rejets.
     if (
-      IS_DEV &&
+      IS_MOCK_MODE &&
       (!error.response ||
         error.code === 'ERR_NETWORK' ||
         error.response?.status === 404 ||
@@ -98,4 +101,3 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-

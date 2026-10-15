@@ -3,7 +3,7 @@ import { sapAuth } from '../api/sapAuth';
 import { apiClient, setUnauthorizedHandler } from '../api/client';
 import { ENDPOINTS } from '../api/endpoints';
 import { sha256Hex } from '../utils/crypto';
-import { IS_DEV } from '../config/constants';
+import { DEMO_MODE, IS_DEV } from '../config/constants';
 
 export interface IUserInfo {
   userCode: string;
@@ -106,6 +106,25 @@ export const useAuthStore = create<IAuthState>((set) => ({
         },
         validPwds: ['admin', 'password', '1234'],
       },
+      'demo-admin': {
+        user: {
+          userCode: 'DEMO-ADMIN',
+          userName: 'Administrateur Démo',
+          isAdmin: true,
+          mustChangePwd: false,
+        },
+        validPwds: ['demo-admin-2026'],
+      },
+      'demo-user': {
+        user: {
+          userCode: 'DEMO-USER',
+          userName: 'Utilisateur Standard Démo',
+          isAdmin: false,
+          mustChangePwd: false,
+          warehouseCode: '01',
+        },
+        validPwds: ['demo-user-2026'],
+      },
       'e.doueu': {
         user: {
           userCode: 'E.DOUEU',
@@ -158,7 +177,7 @@ export const useAuthStore = create<IAuthState>((set) => ({
       },
     };
 
-    if (IS_DEV && devProfiles[normalizedCode]) {
+    if ((IS_DEV || DEMO_MODE) && devProfiles[normalizedCode]) {
       const match = devProfiles[normalizedCode];
       if (match.validPwds.includes(normalizedPwd) || match.validPwds.includes(password)) {
         set({
