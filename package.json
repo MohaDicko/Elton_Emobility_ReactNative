@@ -14,7 +14,6 @@
     "test:coverage": "jest --coverage",
     "mock:sap": "node mock-sap-server.js",
     "db:delete": "node scripts/delete-test-db.js",
-    "db:seed": "node scripts/seed-elton-db.js",
     "test:e2e": "node scripts/test-e2e-local.js"
   },
   "dependencies": {

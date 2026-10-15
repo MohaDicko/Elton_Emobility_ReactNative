@@ -265,12 +265,8 @@ const server = http.createServer((req, res) => {
     };
 
     // Helper OData format
-    const sendOData = (status, rows, totalCount) => {
-      const payload = { 'odata.metadata': 'mock-metadata', value: rows };
-      if (totalCount !== undefined) {
-        payload['odata.count'] = totalCount.toString();
-      }
-      sendJson(status, payload);
+    const sendOData = (status, rows) => {
+      sendJson(status, { 'odata.metadata': 'mock-metadata', value: rows });
     };
 
     try {
@@ -297,37 +293,6 @@ const server = http.createServer((req, res) => {
         return;
       }
 
-      // 2b. ItemGroups
-      if (pathname === '/b1s/v1/ItemGroups') {
-        sendOData(200, [
-          { Number: 100, GroupName: 'Lubrifiants' },
-          { Number: 101, GroupName: 'Filtration' },
-          { Number: 102, GroupName: 'Refroidissement & Freins' },
-          { Number: 103, GroupName: 'Boutique & Entretien' },
-        ]);
-        return;
-      }
-
-      // 2c. BarCodes
-      if (pathname === '/b1s/v1/BarCodes') {
-        const filter = url.searchParams.get('$filter') || '';
-        const bcMatch = filter.match(/Barcode eq '([^']+)'/i);
-        let items = [];
-        if (bcMatch) {
-          items = db.prepare('SELECT ItemCode, BarCode FROM items WHERE BarCode = ?').all(bcMatch[1]);
-        } else {
-          items = db.prepare('SELECT ItemCode, BarCode FROM items WHERE BarCode IS NOT NULL').all();
-        }
-        const rows = items.map((it, idx) => ({
-          AbsEntry: idx + 1,
-          ItemNo: it.ItemCode,
-          Barcode: it.BarCode,
-          FreeText: it.ItemCode,
-        }));
-        sendOData(200, rows);
-        return;
-      }
-
       // 3. PriceLists
       if (pathname === '/b1s/v1/PriceLists') {
         const rows = db.prepare('SELECT PriceListNo, PriceListName FROM price_lists ORDER BY PriceListNo').all();
@@ -345,7 +310,7 @@ const server = http.createServer((req, res) => {
       // 5. Items (Collection)
       if (pathname === '/b1s/v1/Items' && req.method === 'GET') {
         const filter = url.searchParams.get('$filter') || '';
-        let query = "SELECT * FROM items WHERE Frozen = 'tNO'";
+        let query = 'SELECT * FROM items WHERE Frozen = "tNO"';
         const params = [];
 
         // Filtre BarCode
@@ -454,64 +419,10 @@ const server = http.createServer((req, res) => {
       }
 
       // 8. PurchaseOrders (Commandes Fournisseurs)
-      if (pathname === '/b1s/v1/PurchaseOrders') {
-        if (req.method === 'GET') {
-          let rows = db.prepare("SELECT * FROM purchase_orders WHERE DocumentStatus = 'bost_Open' ORDER BY DocDate DESC").all();
-          const inlinecount = url.searchParams.get('$inlinecount') === 'allpages';
-          const topParam = url.searchParams.get('$top');
-          const totalCount = rows.length;
-          if (topParam) {
-            rows = rows.slice(0, parseInt(topParam, 10));
-          }
-          sendOData(200, rows, inlinecount ? totalCount : undefined);
-          return;
-        }
-
-        if (req.method === 'POST') {
-          const newDocEntry = (Date.now() % 90000) + 1000;
-          const newDocNum = newDocEntry;
-          const insertPO = db.prepare(`
-            INSERT INTO purchase_orders (DocEntry, DocNum, CardCode, CardName, DocDate, DocDueDate, DocTotal, NumAtCard, Comments, DocumentStatus)
-            VALUES (?, ?, ?, ?, date('now'), ?, ?, ?, ?, 'bost_Open')
-          `);
-          let cardName = 'FOURNISSEUR';
-          if (parsedBody.CardCode) {
-            const bp = db.prepare('SELECT CardName FROM business_partners WHERE CardCode = ?').get(parsedBody.CardCode);
-            if (bp) cardName = bp.CardName;
-          }
-          insertPO.run(
-            newDocEntry,
-            newDocNum,
-            parsedBody.CardCode || 'F0001',
-            cardName,
-            parsedBody.DocDueDate || new Date().toISOString().slice(0, 10),
-            parsedBody.DocTotal || 0,
-            parsedBody.NumAtCard || `BC-${newDocNum}`,
-            parsedBody.Comments || 'Commande créée via App Mobile Elton'
-          );
-
-          if (Array.isArray(parsedBody.DocumentLines)) {
-            const insertLine = db.prepare(`
-              INSERT INTO purchase_order_lines (DocEntry, LineNum, ItemCode, ItemDescription, Quantity, OpenQty, Price, WarehouseCode)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            `);
-            parsedBody.DocumentLines.forEach((l, idx) => {
-              insertLine.run(
-                newDocEntry,
-                idx,
-                l.ItemCode,
-                l.ItemDescription || l.ItemCode,
-                l.Quantity || 1,
-                l.Quantity || 1,
-                l.UnitPrice || l.Price || 0,
-                l.WarehouseCode || '01'
-              );
-            });
-          }
-
-          sendJson(201, { DocEntry: newDocEntry, DocNum: newDocNum });
-          return;
-        }
+      if (pathname === '/b1s/v1/PurchaseOrders' && req.method === 'GET') {
+        const rows = db.prepare("SELECT * FROM purchase_orders WHERE DocumentStatus = 'bost_Open'").all();
+        sendOData(200, rows);
+        return;
       }
 
       const poDetailMatch = pathname.match(/^\/b1s\/v1\/PurchaseOrders\((\d+)\)$/);
@@ -547,33 +458,19 @@ const server = http.createServer((req, res) => {
       }
 
       // 10. InventoryGenExits (Sorties de Marchandises)
-      if (pathname === '/b1s/v1/InventoryGenExits') {
-        if (req.method === 'GET') {
-          let rows = db.prepare('SELECT * FROM inventory_gen_exits ORDER BY DocEntry DESC').all();
-          const inlinecount = url.searchParams.get('$inlinecount') === 'allpages';
-          const topParam = url.searchParams.get('$top');
-          const totalCount = rows.length;
-          if (topParam) {
-            rows = rows.slice(0, parseInt(topParam, 10));
-          }
-          sendOData(200, rows, inlinecount ? totalCount : undefined);
-          return;
-        }
-
-        if (req.method === 'POST') {
-          const insertExit = db.prepare(`
-            INSERT INTO inventory_gen_exits (DocNum, DocDate, Comments, U_MotifSortie, U_UtilisateurMob)
-            VALUES (?, datetime('now'), ?, ?, ?)
-          `);
-          const resInsert = insertExit.run(
-            Date.now() % 100000,
-            parsedBody.Comments || '',
-            parsedBody.U_MotifSortie || 'Consommation interne',
-            parsedBody.U_UtilisateurMob || 'DEMO'
-          );
-          sendJson(201, { DocEntry: Number(resInsert.lastInsertRowid), DocNum: 9001 });
-          return;
-        }
+      if (pathname === '/b1s/v1/InventoryGenExits' && req.method === 'POST') {
+        const insertExit = db.prepare(`
+          INSERT INTO inventory_gen_exits (DocNum, DocDate, Comments, U_MotifSortie, U_UtilisateurMob)
+          VALUES (?, datetime('now'), ?, ?, ?)
+        `);
+        const resInsert = insertExit.run(
+          Date.now() % 100000,
+          parsedBody.Comments || '',
+          parsedBody.U_MotifSortie || 'Consommation interne',
+          parsedBody.U_UtilisateurMob || 'DEMO'
+        );
+        sendJson(201, { DocEntry: Number(resInsert.lastInsertRowid), DocNum: 9001 });
+        return;
       }
 
       // 11. Journal d'activité mobile
@@ -602,126 +499,8 @@ const server = http.createServer((req, res) => {
         }
       }
 
-      // 12. Gestion des utilisateurs GA_USERS (UDO)
-      const gaUserMatch = pathname.match(/^\/b1s\/v1\/GA_USERS\('([^']+)'\)$/);
-      if (gaUserMatch) {
-        const userCode = decodeURIComponent(gaUserMatch[1]);
-        if (req.method === 'GET') {
-          const user = db.prepare('SELECT Code, Name, U_IsAdmin, U_MustChangePwd, U_WhsCode FROM ga_users WHERE Code = ?').get(userCode);
-          if (!user) {
-            sendJson(404, { error: { message: { value: 'Utilisateur non trouvé' } } });
-            return;
-          }
-          sendJson(200, user);
-          return;
-        }
-        if (req.method === 'PATCH') {
-          const fields = [];
-          const params = [];
-          if (parsedBody.U_Password !== undefined) {
-            fields.push('U_Password = ?');
-            params.push(parsedBody.U_Password);
-          }
-          if (parsedBody.U_WhsCode !== undefined) {
-            fields.push('U_WhsCode = ?');
-            params.push(parsedBody.U_WhsCode);
-          }
-          if (parsedBody.U_MustChangePwd !== undefined) {
-            fields.push('U_MustChangePwd = ?');
-            params.push(parsedBody.U_MustChangePwd);
-          }
-          if (parsedBody.U_IsAdmin !== undefined) {
-            fields.push('U_IsAdmin = ?');
-            params.push(parsedBody.U_IsAdmin);
-          }
-          if (fields.length > 0) {
-            params.push(userCode);
-            db.prepare(`UPDATE ga_users SET ${fields.join(', ')} WHERE Code = ?`).run(...params);
-          }
-          sendJson(204, {});
-          return;
-        }
-        if (req.method === 'DELETE') {
-          db.prepare('DELETE FROM ga_users WHERE Code = ?').run(userCode);
-          sendJson(204, {});
-          return;
-        }
-      }
-
-      if (pathname === '/b1s/v1/GA_USERS') {
-        if (req.method === 'GET') {
-          const rows = db.prepare('SELECT Code, Name, U_IsAdmin, U_MustChangePwd, U_WhsCode FROM ga_users ORDER BY Code').all();
-          sendOData(200, rows);
-          return;
-        }
-        if (req.method === 'POST') {
-          const insert = db.prepare(`
-            INSERT INTO ga_users (Code, Name, U_Password, U_IsAdmin, U_MustChangePwd, U_WhsCode)
-            VALUES (?, ?, ?, ?, ?, ?)
-          `);
-          insert.run(
-            parsedBody.Code,
-            parsedBody.Name,
-            parsedBody.U_Password || '',
-            parsedBody.U_IsAdmin || 'N',
-            parsedBody.U_MustChangePwd || 'N',
-            parsedBody.U_WhsCode || '01'
-          );
-          sendJson(201, { Code: parsedBody.Code, Name: parsedBody.Name });
-          return;
-        }
-      }
-
-      // 13. Requêtes SQL SAP (SQLQueries)
+      // 12. Requêtes SQL SAP (SQLQueries)
       if (pathname.startsWith('/b1s/v1/SQLQueries')) {
-        // Authentification utilisateur mobile
-        if (pathname.includes('GA_AUTH_USER')) {
-          const paramList = (parsedBody && parsedBody.ParamList) || '';
-          const userMatch = paramList.match(/UserCode='([^']+)'/);
-          const pwdMatch = paramList.match(/HashedPwd='([^']+)'/);
-          const userCode = userMatch ? userMatch[1] : '';
-          const hashedPwd = pwdMatch ? pwdMatch[1] : '';
-
-          let user = db.prepare(
-            'SELECT Code, Name, U_IsAdmin, U_MustChangePwd, U_WhsCode FROM ga_users WHERE Code = ? AND U_Password = ?'
-          ).get(userCode, hashedPwd);
-
-          // Si non trouvé par hash, tenter en mode admin direct
-          if (!user && (userCode === 'ADMIN' || userCode === 'DEMO')) {
-            user = db.prepare(
-              'SELECT Code, Name, U_IsAdmin, U_MustChangePwd, U_WhsCode FROM ga_users WHERE Code = ?'
-            ).get(userCode);
-          }
-
-          sendOData(200, user ? [user] : []);
-          return;
-        }
-
-        // Liste des utilisateurs pour l'administration
-        if (pathname.includes('GA_LIST_USERS')) {
-          const rows = db.prepare('SELECT Code, Name, U_IsAdmin, U_MustChangePwd, U_WhsCode FROM ga_users ORDER BY Code').all();
-          sendOData(200, rows);
-          return;
-        }
-
-        // Récupération admin
-        if (pathname.includes('GA_RESET_ADMIN')) {
-          sendOData(200, [{ Code: 'ADMIN', Name: 'Administrateur Général', U_IsAdmin: 'Y', U_ResetUntil: '2099-12-31' }]);
-          return;
-        }
-
-        // Ventes hebdomadaires (Aide à la commande)
-        if (pathname.includes('GA_VENTES_HEBDO')) {
-          const items = db.prepare('SELECT ItemCode FROM items').all();
-          const mockSales = items.map(it => ({
-            ItemCode: it.ItemCode,
-            WeeklySales: Math.floor(Math.random() * 8) + 1,
-          }));
-          sendOData(200, mockSales);
-          return;
-        }
-
-        // Fallback SQLQueries par défaut
         sendOData(200, []);
         return;
       }
