@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npx expo export -p web",
+  "buildCommand": "EXPO_PUBLIC_DEMO_MODE=true EXPO_PUBLIC_ENV=production npx expo export -p web",
   "outputDirectory": "dist",
   "env": {
     "EXPO_PUBLIC_DEMO_MODE": "true",
