@@ -40,9 +40,15 @@ async function serviceLogin(): Promise<void> {
 
     if (IS_DEV) console.log('[sapAuth] Compte service connecté');
   } catch (err) {
-    // Mode Démo autonome (Vercel / Hors ligne 24/7)
-    sessionCookie = 'mock-session-cookie-elton';
-    if (IS_DEV) console.log('[sapAuth] Mode Démo Elton actif (Serveur externe non connecté)');
+    if (IS_DEV) {
+      // Mode Démo autonome (DEV uniquement)
+      sessionCookie = 'mock-session-cookie-elton';
+      console.log('[sapAuth] Mode Démo actif (Serveur SAP externe non connecté)');
+      return;
+    }
+    // En production : l'erreur doit être levée pour refuser la session
+    sessionCookie = null;
+    throw err;
   }
 }
 

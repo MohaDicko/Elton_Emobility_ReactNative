@@ -1,6 +1,6 @@
 // ─── Instance Axios avec interceptors SAP B1 ─────────────────────────────────
 import axios, { InternalAxiosRequestConfig } from 'axios';
-import { SAP_BASE_URL, API_TIMEOUT } from '../config/constants';
+import { SAP_BASE_URL, API_TIMEOUT, IS_DEV } from '../config/constants';
 import { sapAuth } from './sapAuth';
 
 interface RetryableConfig extends InternalAxiosRequestConfig {
@@ -32,7 +32,7 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// ── Mode Secours : renvoie les données Elton Oil en mémoire ──────────────────
+// ── Mode Secours : renvoie les données Elton Oil en mémoire (DEV uniquement) ─
 async function runMockFallback(config: InternalAxiosRequestConfig) {
   const { handleMockFallback } = await import('./mockFallback');
   let requestData = config.data;
@@ -52,7 +52,7 @@ function isSpaHtmlResponse(data: unknown, headers: Record<string, unknown> | und
 // ── Interceptor RESPONSE : gestion 401 (session expirée → redirect login) ───
 apiClient.interceptors.response.use(
   async (response) => {
-    if (isSpaHtmlResponse(response.data, response.headers as Record<string, unknown>)) {
+    if (IS_DEV && isSpaHtmlResponse(response.data, response.headers as Record<string, unknown>)) {
       try {
         return (await runMockFallback(response.config)) as typeof response;
       } catch {
@@ -76,16 +76,17 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // ── Mode Secours Automatique (Vercel / Serveur déconnecté / Démo 24/7) ────
-    // Si le serveur SAP n'est pas joignable (erreur réseau, 404, 405, 403, 502, machine éteinte),
-    // l'application bascule automatiquement sur les données Elton Oil sans planter.
+    // ── Mode Secours Automatique (Strictement réservé au mode DEV / maquette) ──
+    // En production réelle, toute erreur réseau ou serveur SAP doit remonter
+    // fidèlement à l'application sans masquer les pannes ou les rejets.
     if (
-      !error.response ||
-      error.code === 'ERR_NETWORK' ||
-      error.response?.status === 404 ||
-      error.response?.status === 405 ||
-      error.response?.status === 403 ||
-      error.response?.status >= 500
+      IS_DEV &&
+      (!error.response ||
+        error.code === 'ERR_NETWORK' ||
+        error.response?.status === 404 ||
+        error.response?.status === 405 ||
+        error.response?.status === 403 ||
+        error.response?.status >= 500)
     ) {
       try {
         return Promise.resolve(await runMockFallback(originalRequest));

@@ -4,6 +4,7 @@ import { sapAuth } from '../api/sapAuth';
 import { apiClient, setUnauthorizedHandler } from '../api/client';
 import { ENDPOINTS } from '../api/endpoints';
 import { sha256Hex } from '../utils/crypto';
+import { IS_DEV } from '../config/constants';
 
 const APP_USER_KEY = 'GA_APP_USER';
 
@@ -160,7 +161,7 @@ export const useAuthStore = create<IAuthState>((set) => ({
       },
     };
 
-    if (devProfiles[normalizedCode]) {
+    if (IS_DEV && devProfiles[normalizedCode]) {
       const match = devProfiles[normalizedCode];
       if (match.validPwds.includes(normalizedPwd) || match.validPwds.includes(password)) {
         set({
@@ -174,7 +175,8 @@ export const useAuthStore = create<IAuthState>((set) => ({
 
     try {
       const hashedPwd = await sha256Hex(password);
-      const safeCode = userCode.replace(/'/g, '');
+      // Neutralisation stricte des caractères d'injection SQL / délimiteurs
+      const safeCode = userCode.trim().replace(/['"\\;]/g, '');
 
       const { data } = await apiClient.post<{ value: IAuthUserRow[] }>(
         ENDPOINTS.SQL_AUTH_USER,
