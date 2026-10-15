@@ -265,8 +265,12 @@ const server = http.createServer((req, res) => {
     };
 
     // Helper OData format
-    const sendOData = (status, rows) => {
-      sendJson(status, { 'odata.metadata': 'mock-metadata', value: rows });
+    const sendOData = (status, rows, totalCount) => {
+      const payload = { 'odata.metadata': 'mock-metadata', value: rows };
+      if (totalCount !== undefined) {
+        payload['odata.count'] = totalCount.toString();
+      }
+      sendJson(status, payload);
     };
 
     try {
@@ -289,6 +293,37 @@ const server = http.createServer((req, res) => {
       // 2. Warehouses
       if (pathname === '/b1s/v1/Warehouses') {
         const rows = db.prepare('SELECT WarehouseCode, WarehouseName FROM warehouses').all();
+        sendOData(200, rows);
+        return;
+      }
+
+      // 2b. ItemGroups
+      if (pathname === '/b1s/v1/ItemGroups') {
+        sendOData(200, [
+          { Number: 100, GroupName: 'Lubrifiants' },
+          { Number: 101, GroupName: 'Filtration' },
+          { Number: 102, GroupName: 'Refroidissement & Freins' },
+          { Number: 103, GroupName: 'Boutique & Entretien' },
+        ]);
+        return;
+      }
+
+      // 2c. BarCodes
+      if (pathname === '/b1s/v1/BarCodes') {
+        const filter = url.searchParams.get('$filter') || '';
+        const bcMatch = filter.match(/Barcode eq '([^']+)'/i);
+        let items = [];
+        if (bcMatch) {
+          items = db.prepare('SELECT ItemCode, BarCode FROM items WHERE BarCode = ?').all(bcMatch[1]);
+        } else {
+          items = db.prepare('SELECT ItemCode, BarCode FROM items WHERE BarCode IS NOT NULL').all();
+        }
+        const rows = items.map((it, idx) => ({
+          AbsEntry: idx + 1,
+          ItemNo: it.ItemCode,
+          Barcode: it.BarCode,
+          FreeText: it.ItemCode,
+        }));
         sendOData(200, rows);
         return;
       }
@@ -419,10 +454,64 @@ const server = http.createServer((req, res) => {
       }
 
       // 8. PurchaseOrders (Commandes Fournisseurs)
-      if (pathname === '/b1s/v1/PurchaseOrders' && req.method === 'GET') {
-        const rows = db.prepare("SELECT * FROM purchase_orders WHERE DocumentStatus = 'bost_Open'").all();
-        sendOData(200, rows);
-        return;
+      if (pathname === '/b1s/v1/PurchaseOrders') {
+        if (req.method === 'GET') {
+          let rows = db.prepare("SELECT * FROM purchase_orders WHERE DocumentStatus = 'bost_Open' ORDER BY DocDate DESC").all();
+          const inlinecount = url.searchParams.get('$inlinecount') === 'allpages';
+          const topParam = url.searchParams.get('$top');
+          const totalCount = rows.length;
+          if (topParam) {
+            rows = rows.slice(0, parseInt(topParam, 10));
+          }
+          sendOData(200, rows, inlinecount ? totalCount : undefined);
+          return;
+        }
+
+        if (req.method === 'POST') {
+          const newDocEntry = (Date.now() % 90000) + 1000;
+          const newDocNum = newDocEntry;
+          const insertPO = db.prepare(`
+            INSERT INTO purchase_orders (DocEntry, DocNum, CardCode, CardName, DocDate, DocDueDate, DocTotal, NumAtCard, Comments, DocumentStatus)
+            VALUES (?, ?, ?, ?, date('now'), ?, ?, ?, ?, 'bost_Open')
+          `);
+          let cardName = 'FOURNISSEUR';
+          if (parsedBody.CardCode) {
+            const bp = db.prepare('SELECT CardName FROM business_partners WHERE CardCode = ?').get(parsedBody.CardCode);
+            if (bp) cardName = bp.CardName;
+          }
+          insertPO.run(
+            newDocEntry,
+            newDocNum,
+            parsedBody.CardCode || 'F0001',
+            cardName,
+            parsedBody.DocDueDate || new Date().toISOString().slice(0, 10),
+            parsedBody.DocTotal || 0,
+            parsedBody.NumAtCard || `BC-${newDocNum}`,
+            parsedBody.Comments || 'Commande créée via App Mobile Elton'
+          );
+
+          if (Array.isArray(parsedBody.DocumentLines)) {
+            const insertLine = db.prepare(`
+              INSERT INTO purchase_order_lines (DocEntry, LineNum, ItemCode, ItemDescription, Quantity, OpenQty, Price, WarehouseCode)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `);
+            parsedBody.DocumentLines.forEach((l, idx) => {
+              insertLine.run(
+                newDocEntry,
+                idx,
+                l.ItemCode,
+                l.ItemDescription || l.ItemCode,
+                l.Quantity || 1,
+                l.Quantity || 1,
+                l.UnitPrice || l.Price || 0,
+                l.WarehouseCode || '01'
+              );
+            });
+          }
+
+          sendJson(201, { DocEntry: newDocEntry, DocNum: newDocNum });
+          return;
+        }
       }
 
       const poDetailMatch = pathname.match(/^\/b1s\/v1\/PurchaseOrders\((\d+)\)$/);
@@ -458,19 +547,33 @@ const server = http.createServer((req, res) => {
       }
 
       // 10. InventoryGenExits (Sorties de Marchandises)
-      if (pathname === '/b1s/v1/InventoryGenExits' && req.method === 'POST') {
-        const insertExit = db.prepare(`
-          INSERT INTO inventory_gen_exits (DocNum, DocDate, Comments, U_MotifSortie, U_UtilisateurMob)
-          VALUES (?, datetime('now'), ?, ?, ?)
-        `);
-        const resInsert = insertExit.run(
-          Date.now() % 100000,
-          parsedBody.Comments || '',
-          parsedBody.U_MotifSortie || 'Consommation interne',
-          parsedBody.U_UtilisateurMob || 'DEMO'
-        );
-        sendJson(201, { DocEntry: Number(resInsert.lastInsertRowid), DocNum: 9001 });
-        return;
+      if (pathname === '/b1s/v1/InventoryGenExits') {
+        if (req.method === 'GET') {
+          let rows = db.prepare('SELECT * FROM inventory_gen_exits ORDER BY DocEntry DESC').all();
+          const inlinecount = url.searchParams.get('$inlinecount') === 'allpages';
+          const topParam = url.searchParams.get('$top');
+          const totalCount = rows.length;
+          if (topParam) {
+            rows = rows.slice(0, parseInt(topParam, 10));
+          }
+          sendOData(200, rows, inlinecount ? totalCount : undefined);
+          return;
+        }
+
+        if (req.method === 'POST') {
+          const insertExit = db.prepare(`
+            INSERT INTO inventory_gen_exits (DocNum, DocDate, Comments, U_MotifSortie, U_UtilisateurMob)
+            VALUES (?, datetime('now'), ?, ?, ?)
+          `);
+          const resInsert = insertExit.run(
+            Date.now() % 100000,
+            parsedBody.Comments || '',
+            parsedBody.U_MotifSortie || 'Consommation interne',
+            parsedBody.U_UtilisateurMob || 'DEMO'
+          );
+          sendJson(201, { DocEntry: Number(resInsert.lastInsertRowid), DocNum: 9001 });
+          return;
+        }
       }
 
       // 11. Journal d'activité mobile
